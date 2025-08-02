@@ -18,9 +18,9 @@ module unreal::unreal_token {
     
     /// Unreal token capabilities
     struct UnrealTokenCapabilities has key {
+        mint_cap: coin::MintCapability<UnrealToken>,
         burn_cap: coin::BurnCapability<UnrealToken>,
         freeze_cap: coin::FreezeCapability<UnrealToken>,
-        mint_cap: coin::MintCapability<UnrealToken>,
     }
     
     /// Unreal token metadata
@@ -37,7 +37,7 @@ module unreal::unreal_token {
         let admin_addr = signer::address_of(admin);
         
         // Register the token with Aptos coin framework
-        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<UnrealToken>(
+        let (mint_cap, burn_cap, freeze_cap) = coin::initialize<UnrealToken>(
             admin,
             string::utf8(TOKEN_NAME),
             string::utf8(TOKEN_SYMBOL),
@@ -80,7 +80,6 @@ module unreal::unreal_token {
         // Register the recipient if needed
         if (!coin::is_account_registered<UnrealToken>(to)) {
             // In a real implementation, the recipient would need to register themselves
-            // For this example we just register the token for them
             coin::register<UnrealToken>(admin);
         };
         

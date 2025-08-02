@@ -6,8 +6,9 @@ module unreal::unreal_tests {
     use aptos_framework::account;
     use aptos_framework::timestamp;
     use aptos_framework::coin;
+    // Updated imports to avoid name resolution conflicts
     use unreal::unreal_token;
-    use unreal::unreal_htlc;
+    use unreal::unreal_htlc::{Self};
 
     // Test accounts
     const ADMIN_ADDR: address = @unreal;
