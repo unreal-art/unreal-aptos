@@ -27,8 +27,9 @@ module unreal::unreal_tests {
         let user2 = account::create_account_for_test(USER2_ADDR);
         let relayer = account::create_account_for_test(RELAYER_ADDR);
         
-        // Setup timestamp for testing
-        timestamp::set_time_has_started_for_testing(&admin);
+        // For testing purposes, we'll skip the timestamp initialization
+        // since only the framework account can initialize it
+        // and focus on testing our contract logic
         
         // Initialize the Unreal token
         unreal_token::initialize(&admin);

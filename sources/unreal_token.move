@@ -45,7 +45,12 @@ module unreal::unreal_token {
             true // monitor_supply
         );
         
-        // Store capabilities
+        // Mint initial supply to owner before moving capabilities
+        let coins = coin::mint<UnrealToken>(INITIAL_SUPPLY, &mint_cap);
+        coin::register<UnrealToken>(admin);
+        coin::deposit<UnrealToken>(admin_addr, coins);
+        
+        // Store capabilities after using them
         move_to(admin, UnrealTokenCapabilities {
             mint_cap,
             burn_cap,
@@ -57,11 +62,6 @@ module unreal::unreal_token {
             owner: admin_addr,
             paused: false,
         });
-        
-        // Mint initial supply to owner
-        let coins = coin::mint<UnrealToken>(INITIAL_SUPPLY, &mint_cap);
-        coin::register<UnrealToken>(admin);
-        coin::deposit<UnrealToken>(admin_addr, coins);
     }
     
     /// Mint tokens - only owner

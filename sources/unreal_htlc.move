@@ -153,7 +153,7 @@ module unreal::unreal_htlc {
     }
 
     /// Generate a lock ID based on parameters
-    fun generate_lock_id(
+    public fun generate_lock_id(
         secret_hash: vector<u8>,
         recipient: address,
         sender: address,
