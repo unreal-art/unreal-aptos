@@ -28,30 +28,30 @@ add-relayer RELAYER_ADDRESS:
 # Create a swap from Aptos to Etherlink
 initiate-swap SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS EVM_CHAIN_NAME EVM_ADDRESS:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::initiate_swap \
-    --args vector<u8>:{{SECRET_HASH}} \
-    --args address:{{RECIPIENT}} \
-    --args u64:{{AMOUNT}} \
-    --args u64:{{TIMELOCK_HOURS}} \
-    --args string:{{EVM_CHAIN_NAME}} \
-    --args string:{{EVM_ADDRESS}} \
+    --args "hex:{{SECRET_HASH}}" \
+    --args "address:{{RECIPIENT}}" \
+    --args "u64:{{AMOUNT}}" \
+    --args "u64:{{TIMELOCK_HOURS}}" \
+    --args "string:{{EVM_CHAIN_NAME}}" \
+    --args "string:{{EVM_ADDRESS}}" \
     --assume-yes
 
 # Complete a swap from Etherlink to Aptos (called by relayer)
 complete-swap EVM_CHAIN_NAME EVM_ADDRESS RECIPIENT_ADDRESS AMOUNT SECRET:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::complete_swap \
-    --args string:{{EVM_CHAIN_NAME}} \
-    --args string:{{EVM_ADDRESS}} \
-    --args address:{{RECIPIENT_ADDRESS}} \
-    --args u64:{{AMOUNT}} \
-    --args vector<u8>:{{SECRET}} \
+    --args "string:{{EVM_CHAIN_NAME}}" \
+    --args "string:{{EVM_ADDRESS}}" \
+    --args "address:{{RECIPIENT_ADDRESS}}" \
+    --args "u64:{{AMOUNT}}" \
+    --args "hex:{{SECRET}}" \
     --assume-yes
 
 demo-bidirectional:
     @echo "Starting Etherlink ↔ Aptos bidirectional swap demo"
     @echo "Step 1: Deploy and initialize contracts on Aptos"
     just deploy
-    just init-token
-    just setup-htlc
+    # just init-token
+    # just setup-htlc
     @echo "Step 2: Add relayer for cross-chain operations"
     just add-relayer ${RELAYER_ADDRESS}
     @echo "Step 3: Demonstrate Aptos → Etherlink swap"
