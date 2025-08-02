@@ -1,0 +1,33 @@
+{
+  "name": "unreal-aptos",
+  "version": "1.0.0",
+  "description": "Aptos integration for Unreal cross-chain bridge using 1inch Fusion+",
+  "main": "dist/scripts/etherlink_bridge.js",
+  "scripts": {
+    "build": "tsc",
+    "etherlink-bridge": "ts-node scripts/etherlink_bridge.ts",
+    "relayer": "ts-node scripts/relayer.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "aptos",
+    "etherlink",
+    "bridge",
+    "1inch",
+    "fusion",
+    "cross-chain",
+    "unreal"
+  ],
+  "author": "Unreal Team",
+  "license": "MIT",
+  "dependencies": {
+    "aptos": "^1.13.0",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  }
+}
