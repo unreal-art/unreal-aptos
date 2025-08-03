@@ -46,6 +46,17 @@ initiate-swap SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS EVM_CHAIN_NAME EVM_ADD
     --args "string:{{EVM_ADDRESS}}" \
     --assume-yes
 
+# Lock funds on Aptos for Etherlink->Aptos swap (EVM->Aptos)
+lock-funds SECRET_HASH RECIPIENT AMOUNT DEADLINE SOURCE_CHAIN RECEIVER_EVM:
+    aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::initiate_swap \
+    --args "hex:{{SECRET_HASH}}" \
+    --args "address:{{RECIPIENT}}" \
+    --args "u64:{{AMOUNT}}" \
+    --args "u64:24" \
+    --args "string:{{SOURCE_CHAIN}}" \
+    --args "string:{{RECEIVER_EVM}}" \
+    --assume-yes
+
 # Complete a swap from Etherlink to Aptos (called by relayer)
 complete-swap EVM_CHAIN_NAME EVM_ADDRESS RECIPIENT_ADDRESS AMOUNT SECRET:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::complete_swap \

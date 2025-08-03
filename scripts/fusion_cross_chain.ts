@@ -310,12 +310,17 @@ async function executeEtherlinkToAptosSwap(
     await approveTx.wait()
     console.log(`Approval transaction: ${approveTx.hash}`)
 
-    // Lock funds in HTLC using initiateSwap function
-    console.log(`Locking funds in HTLC...`)
-
     // Derive EVM compatible address from Aptos address
     // For the receiver, we'll use the address as is since it's already in EVM format for testing
     const evmCompatibleAddress = order.receiver
+
+    console.log(`
+Next step: Lock funds in HTLC
+just lock-funds ${secretHash} ${evmCompatibleAddress} ${order.amount} ${order.deadline} Aptos ${order.receiver}
+`)
+
+    // Lock funds in HTLC using initiateSwap function
+    console.log(`Locking funds in HTLC...`)
 
     const lockTx = await solverHtlc.initiateSwap(
       secretHash,
@@ -355,12 +360,11 @@ async function executeEtherlinkToAptosSwap(
     }
     console.log(`Swap ID: ${swapId}`)
 
-    // Now initiate the corresponding swap on Aptos side
-    // This is simplified and would need to be implemented based on your Aptos module
-    console.log(`Now solver needs to:
-1. Initiate the corresponding swap on Aptos
-2. Pay ${ethers.utils.formatEther(feeAmount)} ETH to cover costs
-3. Wait for the user to claim on Aptos using the secret: ${ethers.utils.hexlify(secret)}`)
+    // Print just command for Aptos-side swap initiation
+    console.log(`\nNext step: Initiate the corresponding swap on Aptos:`)
+    console.log(`just initiate-swap ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${solverWallet.address}`)
+    console.log(`\nNext step: User claims on Aptos:`)
+    console.log(`just claim-swap ${swapId} ${ethers.utils.hexlify(secret)}`)
 
     // Store the swap details for the solver to track
     const swapDetails = {
