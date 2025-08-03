@@ -11,22 +11,10 @@ import * as dotenv from 'dotenv';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from '../config';
 
 // Load environment variables
 dotenv.config();
-
-// Configuration
-const config = {
-  aptosNodeUrl: process.env.APTOS_NODE_URL || 'https://fullnode.testnet.aptoslabs.com',
-  aptosPrivateKey: process.env.APTOS_PRIVATE_KEY || '',
-  aptosModuleAddress: process.env.APTOS_MODULE_ADDRESS || '0x1',
-  aptosModuleName: process.env.APTOS_MODULE_NAME || 'unreal',
-  etherlinkRpcUrl: process.env.ETHERLINK_RPC_URL || 'http://localhost:8545',
-  etherlinkPrivateKey: process.env.ETHERLINK_PRIVATE_KEY || '',
-  etherlinkBridgeAddress: process.env.ETHERLINK_BRIDGE_ADDRESS || '',
-  etherlinkHtlcAddress: process.env.ETHERLINK_HTLC_ADDRESS || '',
-  unrealTokenAddress: process.env.UNREAL_TOKEN_ADDRESS || '',
-};
 
 // Initialize Aptos client
 const aptosClient = new AptosClient(config.aptosNodeUrl);
