@@ -61,5 +61,8 @@ demo-bidirectional:
     @echo "Bidirectional swap demonstration completed"
 
 
-relayer:
-    bun run relayer
+relayer *ARGS:
+    bun run relayer {{ARGS}}
+
+bridge *ARGS:
+    bun run etherlink-bridge {{ARGS}}
