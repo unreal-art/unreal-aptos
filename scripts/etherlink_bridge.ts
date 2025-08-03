@@ -146,11 +146,17 @@ async function initiateEtherlinkToAptosSwap(
     
     // Lock tokens in HTLC contract
     console.log(`Locking tokens in HTLC contract...`);
+    
+    // Create a proper future timestamp (current time + 24 hours in seconds)
+    const currentTimestamp = Math.floor(Date.now() / 1000); // Current time in seconds
+    const timelock = currentTimestamp + (24 * 60 * 60); // 24 hours from now in seconds
+    console.log(`Using timelock with end time: ${timelock} (${new Date(timelock * 1000).toISOString()})`); 
+    
     const tx = await htlcContract.initiateSwap(
       hash,
       evmCompatibleAddress, // Use the derived EVM address
       amountWei,
-      24, // 24 hours timelock
+      timelock, // Absolute future timestamp for timelock
       'Aptos',
       receiverAddress // Original Aptos address as string in target chain data
     );
