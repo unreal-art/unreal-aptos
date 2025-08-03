@@ -134,15 +134,25 @@ async function initiateEtherlinkToAptosSwap(
     await approveTx.wait();
     console.log(`Approval transaction confirmed: ${approveTx.hash}`);
     
+    // Derive EVM compatible address from Aptos address
+    // The Aptos address is 32 bytes, but we need a 20-byte EVM address
+    // We'll use the last 20 bytes of a keccak256 hash of the Aptos address
+    const aptosAddressBuffer = Buffer.from(receiverAddress.replace(/^0x/, ''), 'hex');
+    const hash256 = ethers.utils.keccak256(aptosAddressBuffer);
+    const evmCompatibleAddress = ethers.utils.getAddress('0x' + hash256.slice(2).slice(-40)); // last 20 bytes
+    
+    console.log(`Original Aptos address: ${receiverAddress}`);
+    console.log(`Derived EVM-compatible address: ${evmCompatibleAddress}`);
+    
     // Lock tokens in HTLC contract
     console.log(`Locking tokens in HTLC contract...`);
     const tx = await htlcContract.initiateSwap(
       hash,
-      receiverAddress,
+      evmCompatibleAddress, // Use the derived EVM address
       amountWei,
       24, // 24 hours timelock
       'Aptos',
-      receiverAddress // Using receiver address as target for simplicity
+      receiverAddress // Original Aptos address as string in target chain data
     );
     
     const receipt = await tx.wait();
