@@ -89,7 +89,7 @@ demo:
     @echo "Step 2: Add relayer for cross-chain operations"
     just add-relayer ${RELAYER_ADDRESS}
     @echo "Step 3: Demonstrate Aptos → Etherlink swap"
-    just initiate-swap ${SECRET_HASH} ${ETH_RECIPIENT} 1000 24 "Etherlink" ${ETH_ADDRESS}
+    just initiate-swap ${SECRET_HASH} ${ETH_RECIPIENT} 1000 24 "Etherlink" ${ETH_ADDRESS} `date +%s`
     @echo "Step 4: Demonstrate Etherlink → Aptos swap"
     just complete-swap "Etherlink" ${ETH_ADDRESS} ${APTOS_ACCOUNT} 1000 ${SECRET}
     @echo "Bidirectional swap demonstration completed"
