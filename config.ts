@@ -25,6 +25,15 @@ export const config = {
   pollInterval: parseInt(process.env.RELAYER_POLL_INTERVAL || "60000", 10), // Default 1 minute
 }
 
-const etherlinkRpcUrl =
-  "https://128123.rpc.thirdweb.com/fba2eea246629666b6b38ea90e03fedb"
+// Override Etherlink RPC URL with a specific endpoint that works reliably
+const etherlinkRpcUrl = "https://128123.rpc.thirdweb.com/fba2eea246629666b6b38ea90e03fedb"
+
+// Only update the RPC URL, preserve all other config properties
 config.etherlinkRpcUrl = etherlinkRpcUrl
+
+// Ensure contract addresses are exported from the config
+export const {
+  etherlinkBridgeAddress,
+  etherlinkHtlcAddress,
+  unrealTokenAddress
+} = config

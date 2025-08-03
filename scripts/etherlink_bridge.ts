@@ -111,12 +111,27 @@ async function initiateEtherlinkToAptosSwap(
     // Approve token spend
     const amountWei = ethers.utils.parseEther(amount);
     console.log(`Approving token spend of ${amountWei.toString()} wei...`);
+    
+    // Get current gas price with a premium
+    const gasPrice = await etherlinkProvider.getGasPrice();
+    const gasPriceWithPremium = gasPrice.mul(120).div(100); // 20% premium
+    console.log(`Using gas price: ${ethers.utils.formatUnits(gasPriceWithPremium, 'gwei')} gwei`);
+    
+    // Add explicit gas parameters to help the transaction go through
     const approveTx = await tokenContract.approve(
       config.etherlinkBridgeAddress, 
-      amountWei
+      amountWei,
+      {
+        gasLimit: 900000,  // Increased gas limit based on network requirements (872000 minimum)
+        gasPrice: gasPriceWithPremium
+      }
     );
+    
+    console.log(`Approval transaction submitted: ${approveTx.hash}`);
+    console.log('Waiting for transaction confirmation...');
+    
     await approveTx.wait();
-    console.log(`Approval transaction: ${approveTx.hash}`);
+    console.log(`Approval transaction confirmed: ${approveTx.hash}`);
     
     // Lock tokens in HTLC contract
     console.log(`Locking tokens in HTLC contract...`);
