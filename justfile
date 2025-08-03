@@ -59,3 +59,7 @@ demo-bidirectional:
     @echo "Step 4: Demonstrate Etherlink → Aptos swap"
     just complete-swap "Etherlink" ${ETH_ADDRESS} ${APTOS_ACCOUNT} 1000 ${SECRET}
     @echo "Bidirectional swap demonstration completed"
+
+
+relayer:
+    bun run relayer
