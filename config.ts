@@ -22,6 +22,7 @@ export const config = {
   etherlinkBridgeAddress: process.env.ETHERLINK_BRIDGE_ADDRESS || "",
   etherlinkHtlcAddress: process.env.ETHERLINK_HTLC_ADDRESS || "",
   unrealTokenAddress: process.env.UNREAL_TOKEN_ADDRESS || "",
+  etherlinkChainId: ETHERLINK_CHAIN.id,
   pollInterval: parseInt(process.env.RELAYER_POLL_INTERVAL || "60000", 10), // Default 1 minute
 }
 

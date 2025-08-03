@@ -8,6 +8,15 @@ set export
 import? "local.justfile"
 
 APTOS_ACCOUNT := env("APTOS_ACCOUNT")
+SOLVER_PRIVATE_KEY := env("SOLVER_PRIVATE_KEY")
+
+ORDERFILE := "order.json"
+
+create-order:
+    bun run fusion-cross-chain create-order {{SOLVER_PRIVATE_KEY}} {{ORDERFILE}}
+
+start-solver orderfile=ORDERFILE:
+    bun run fusion-cross-chain start-solver {{SOLVER_PRIVATE_KEY}} {{orderfile}}
 
 deploy:
     aptos move compile --named-addresses unreal=${APTOS_ACCOUNT}
