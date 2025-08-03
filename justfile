@@ -36,7 +36,7 @@ start-solver orderfile=ORDERFILE:
     bun run fusion-cross-chain start-solver {{SOLVER_PRIVATE_KEY}} {{orderfile}}
     
 # Create a swap from Aptos to Etherlink
-initiate-swap SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS EVM_CHAIN_NAME EVM_ADDRESS:
+initiate-swap SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS EVM_CHAIN_NAME EVM_ADDRESS TIMESTAMP:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::initiate_swap \
     --args "hex:{{SECRET_HASH}}" \
     --args "address:{{RECIPIENT}}" \
@@ -44,17 +44,19 @@ initiate-swap SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS EVM_CHAIN_NAME EVM_ADD
     --args "u64:{{TIMELOCK_HOURS}}" \
     --args "string:{{EVM_CHAIN_NAME}}" \
     --args "string:{{EVM_ADDRESS}}" \
+    --args "u64:{{TIMESTAMP}}" \
     --assume-yes
 
 # Lock funds on Aptos for Etherlink->Aptos swap (EVM->Aptos)
-lock-funds SECRET_HASH RECIPIENT AMOUNT DEADLINE SOURCE_CHAIN RECEIVER_EVM:
+lock-funds SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS SOURCE_CHAIN RECEIVER_EVM TIMESTAMP:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::initiate_swap \
     --args "hex:{{SECRET_HASH}}" \
     --args "address:{{RECIPIENT}}" \
     --args "u64:{{AMOUNT}}" \
-    --args "u64:24" \
+    --args "u64:{{TIMELOCK_HOURS}}" \
     --args "string:{{SOURCE_CHAIN}}" \
     --args "string:{{RECEIVER_EVM}}" \
+    --args "u64:{{TIMESTAMP}}" \
     --assume-yes
 
 # Complete a swap from Etherlink to Aptos (called by relayer)

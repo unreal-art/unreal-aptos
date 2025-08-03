@@ -206,14 +206,14 @@ module unreal::unreal_htlc {
         amount: u64,
         timeout_hours: u64,
         target_chain: String,
-        target_address: String
+        target_address: String,
+        timestamp: u64 // NEW: explicit timestamp for deterministic swap ID
     ) acquires UnrealHTLCState {
         assert!(amount > 0, error::invalid_argument(ERR_INVALID_AMOUNT));
         let sender_addr = signer::address_of(sender);
         
         // Calculate timeout timestamp
-        let current_time = timestamp::now_seconds();
-        let endtime = current_time + (timeout_hours * HOURS_TO_SECONDS);
+        let endtime = timestamp + (timeout_hours * HOURS_TO_SECONDS);
         
         // Generate lock ID
         let lock_id = generate_lock_id(
@@ -222,7 +222,7 @@ module unreal::unreal_htlc {
             sender_addr,
             amount,
             endtime,
-            current_time
+            timestamp
         );
         
         // Check if lock contract already exists

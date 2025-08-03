@@ -314,10 +314,10 @@ async function executeEtherlinkToAptosSwap(
     // For the receiver, we'll use the address as is since it's already in EVM format for testing
     const evmCompatibleAddress = order.receiver
 
-    console.log(`
-Next step: Lock funds in HTLC
-just lock-funds ${secretHash} ${evmCompatibleAddress} ${order.amount} ${order.deadline} Aptos ${order.receiver}
-`)
+    // Compute unix timestamp (seconds) for deterministic swap ID
+    const unixTimestamp = Math.floor(Date.now() / 1000)
+    // Arg order: SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS SOURCE_CHAIN RECEIVER_EVM TIMESTAMP
+    console.log(`\nNext step: Lock funds in HTLC\njust lock-funds ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${evmCompatibleAddress} ${unixTimestamp}\n`)
 
     // Lock funds in HTLC using initiateSwap function
     console.log(`Locking funds in HTLC...`)
