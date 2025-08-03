@@ -13,6 +13,10 @@ SOLVER_PRIVATE_KEY := env("SOLVER_PRIVATE_KEY")
 ORDERFILE := "order.json"
 
 
+config:
+    echo "Config wallet for this project"
+    aptos init
+
 deploy:
     aptos move compile --named-addresses unreal=${APTOS_ACCOUNT}
     aptos move publish --named-addresses unreal=${APTOS_ACCOUNT} --assume-yes

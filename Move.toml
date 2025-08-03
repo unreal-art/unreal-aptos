@@ -3,7 +3,9 @@ name = "unreal_aptos"
 version = "1.0.0"
 authors = []
 
-[addresses]
+# [addresses]
+# unreal = "0xe33bcb0cc4efa388dd13b078ba7b39ae5332039eff995deaca2a9f43c886adbd"
+
 
 [dev-addresses]
 
