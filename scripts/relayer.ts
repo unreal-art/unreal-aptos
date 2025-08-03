@@ -26,6 +26,8 @@ const config = {
   etherlinkRpcUrl: process.env.ETHERLINK_RPC_URL || 'http://localhost:8545',
   etherlinkPrivateKey: process.env.ETHERLINK_PRIVATE_KEY || '',
   etherlinkBridgeAddress: process.env.ETHERLINK_BRIDGE_ADDRESS || '',
+  etherlinkHtlcAddress: process.env.ETHERLINK_HTLC_ADDRESS || '',
+  unrealTokenAddress: process.env.UNREAL_TOKEN_ADDRESS || '',
   pollInterval: parseInt(process.env.RELAYER_POLL_INTERVAL || '60000', 10), // Default 1 minute
 };
 
@@ -37,23 +39,52 @@ const indexerClient = new IndexerClient(config.aptosIndexerUrl);
 const etherlinkProvider = new ethers.providers.JsonRpcProvider(config.etherlinkRpcUrl);
 const etherlinkWallet = new ethers.Wallet(config.etherlinkPrivateKey, etherlinkProvider);
 
-// Load bridge ABI
-const bridgeAbi = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../contracts/abi/UnrealBridge.json'),
+// Load contract ABIs
+const htlcArtifact = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '../../../artifacts/contracts/UnrealHTLC.sol/UnrealHTLC.json'),
   'utf8'
 ));
 
-// Contract instance
-const bridgeContract = new ethers.Contract(
-  config.etherlinkBridgeAddress,
-  bridgeAbi,
+const tokenArtifact = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '../../../artifacts/contracts/UnrealToken.sol/UnrealToken.json'),
+  'utf8'
+));
+
+// Extract ABIs from artifacts
+const htlcAbi = htlcArtifact.abi;
+const tokenAbi = tokenArtifact.abi;
+
+// Contract instances
+const htlcContract = new ethers.Contract(
+  config.etherlinkHtlcAddress,
+  htlcAbi,
+  etherlinkWallet
+);
+
+const tokenContract = new ethers.Contract(
+  config.unrealTokenAddress,
+  tokenAbi,
   etherlinkWallet
 );
 
 // Aptos account from private key
-const aptosAccount = new AptosAccount(
-  Buffer.from(config.aptosPrivateKey.replace(/^0x/, ''), 'hex')
-);
+// Create a random account if private key isn't provided or is invalid
+let aptosAccount: AptosAccount;
+try {
+  // Use HexString to properly format the key
+  const privateKeyHex = config.aptosPrivateKey.startsWith('0x') 
+    ? config.aptosPrivateKey 
+    : `0x${config.aptosPrivateKey}`;
+  // Create account using Ed25519PrivateKey approach
+  aptosAccount = AptosAccount.fromAptosAccountObject({
+    privateKeyHex
+  });
+  console.log(`Using Aptos account: ${aptosAccount.address()}`);  
+} catch (error) {
+  console.warn(`Invalid Aptos private key format, using random account for testing`);
+  aptosAccount = new AptosAccount();
+  console.log(`Using random Aptos account: ${aptosAccount.address()}`);
+}
 
 // Store last processed block/version
 let lastEtherlinkBlock = 0;
@@ -134,11 +165,20 @@ async function monitorEtherlinkEvents(): Promise<void> {
     console.log(`Checking Etherlink events from block ${lastEtherlinkBlock} to ${currentBlock}`);
     
     // Query for SwapInitiated events
-    const filter = bridgeContract.filters.SwapInitiated();
-    const events = await bridgeContract.queryFilter(filter, lastEtherlinkBlock + 1, currentBlock);
+    const filter = htlcContract.filters.SwapInitiated();
+    const events = await htlcContract.queryFilter(filter, lastEtherlinkBlock + 1, currentBlock);
     
     for (const event of events) {
-      const { swapId, sender, recipient, amount, secretHash, targetChain } = event.args || {};
+      // Safely extract arguments from the event
+      const args = event.args as any;
+      if (!args) continue;
+      
+      const swapId = args.swapId;
+      const sender = args.sender;
+      const recipient = args.recipient;
+      const amount = args.amount;
+      const secretHash = args.secretHash;
+      const targetChain = args.targetChain;
       
       // Only process events for Aptos target chain
       if (targetChain === 'Aptos') {
@@ -200,14 +240,17 @@ async function monitorAptosEvents(): Promise<void> {
     );
     
     for (const tx of transactions) {
-      if (tx.type === 'user_transaction' && 
-          tx.payload.type === 'entry_function_payload' && 
-          tx.payload.function.includes(`${config.aptosModuleName}::initiate_swap`)) {
+      // Cast the transaction to the appropriate type
+      const userTx = tx as any;
+      
+      if (userTx.type === 'user_transaction' && 
+          userTx.payload && userTx.payload.type === 'entry_function_payload' && 
+          userTx.payload.function && userTx.payload.function.includes(`${config.aptosModuleName}::initiate_swap`)) {
         
         // This is a swap initiation, extract details
         // In a production environment, you would parse events properly
-        const eventData = tx.events.find(e => 
-          e.type.includes(`${config.aptosModuleName}::SwapInitiatedEvent`)
+        const eventData = userTx.events && userTx.events.find((e: any) => 
+          e.type && e.type.includes(`${config.aptosModuleName}::SwapInitiatedEvent`)
         );
         
         if (eventData) {
@@ -273,11 +316,17 @@ async function processPendingSwaps(): Promise<void> {
             
             if (swapDetails.secret) {
               console.log(`Completing Etherlink->Aptos swap ${swapId}`);
-              await completeEtherlinkToAptosSwap(swapId);
               
-              // Remove from pending
-              delete pendingSwaps[swapId];
-              console.log(`Completed and removed swap ${swapId}`);
+              try {
+                // Execute the completion on Aptos
+                await completeEtherlinkToAptosSwap(swapId, swapDetails.secret);
+                
+                // Remove from pending
+                delete pendingSwaps[swapId];
+                console.log(`Completed and removed swap ${swapId}`);
+              } catch (completionError) {
+                console.error(`Failed to complete swap ${swapId}:`, completionError);
+              }
             } else {
               console.log(`Waiting for secret for swap ${swapId}`);
             }
@@ -299,11 +348,17 @@ async function processPendingSwaps(): Promise<void> {
             
             if (swapDetails.secret) {
               console.log(`Completing Aptos->Etherlink swap ${swapId}`);
-              await completeAptosToEtherlinkSwap(swapId);
               
-              // Remove from pending
-              delete pendingSwaps[swapId];
-              console.log(`Completed and removed swap ${swapId}`);
+              try {
+                // Execute the completion on Etherlink
+                await completeAptosToEtherlinkSwap(swapId, swapDetails.secret);
+                
+                // Remove from pending
+                delete pendingSwaps[swapId];
+                console.log(`Completed and removed swap ${swapId}`);
+              } catch (completionError) {
+                console.error(`Failed to complete swap ${swapId}:`, completionError);
+              }
             } else {
               console.log(`Waiting for secret for swap ${swapId}`);
             }

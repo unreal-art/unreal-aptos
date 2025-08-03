@@ -5,8 +5,8 @@
   "main": "dist/scripts/etherlink_bridge.js",
   "scripts": {
     "build": "tsc",
-    "etherlink-bridge": "ts-node scripts/etherlink_bridge.ts",
-    "relayer": "ts-node scripts/relayer.ts",
+    "etherlink-bridge": "bun scripts/etherlink_bridge.ts",
+    "relayer": "bun scripts/relayer.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -21,7 +21,7 @@
   "author": "Unreal Team",
   "license": "MIT",
   "dependencies": {
-    "aptos": "^1.13.0",
+    "aptos": "^1.21.0",
     "dotenv": "^16.0.3",
     "ethers": "^5.7.2"
   },

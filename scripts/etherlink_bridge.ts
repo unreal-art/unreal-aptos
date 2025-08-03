@@ -24,6 +24,7 @@ const config = {
   etherlinkRpcUrl: process.env.ETHERLINK_RPC_URL || 'http://localhost:8545',
   etherlinkPrivateKey: process.env.ETHERLINK_PRIVATE_KEY || '',
   etherlinkBridgeAddress: process.env.ETHERLINK_BRIDGE_ADDRESS || '',
+  etherlinkHtlcAddress: process.env.ETHERLINK_HTLC_ADDRESS || '',
   unrealTokenAddress: process.env.UNREAL_TOKEN_ADDRESS || '',
 };
 
@@ -36,20 +37,24 @@ const tokenClient = new TokenClient(aptosClient);
 const etherlinkProvider = new ethers.providers.JsonRpcProvider(config.etherlinkRpcUrl);
 const etherlinkWallet = new ethers.Wallet(config.etherlinkPrivateKey, etherlinkProvider);
 
-// Load bridge ABI
-const bridgeAbi = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../contracts/abi/UnrealBridge.json'),
+// Load contract ABIs
+const htlcArtifact = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '../../../artifacts/contracts/UnrealHTLC.sol/UnrealHTLC.json'),
   'utf8'
 ));
-const tokenAbi = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../contracts/abi/UnrealToken.json'),
+const tokenArtifact = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '../../../artifacts/contracts/UnrealToken.sol/UnrealToken.json'),
   'utf8'
 ));
 
+// Extract ABIs from artifacts
+const htlcAbi = htlcArtifact.abi;
+const tokenAbi = tokenArtifact.abi;
+
 // Contract instances
-const bridgeContract = new ethers.Contract(
-  config.etherlinkBridgeAddress, 
-  bridgeAbi, 
+const htlcContract = new ethers.Contract(
+  config.etherlinkHtlcAddress, 
+  htlcAbi, 
   etherlinkWallet
 );
 const tokenContract = new ethers.Contract(
@@ -59,9 +64,23 @@ const tokenContract = new ethers.Contract(
 );
 
 // Aptos account from private key
-const aptosAccount = new AptosAccount(
-  Buffer.from(config.aptosPrivateKey.replace(/^0x/, ''), 'hex')
-);
+// Create a random account if private key isn't provided or is invalid
+let aptosAccount: AptosAccount;
+try {
+  // Use HexString to properly format the key
+  const privateKeyHex = config.aptosPrivateKey.startsWith('0x') 
+    ? config.aptosPrivateKey 
+    : `0x${config.aptosPrivateKey}`;
+  // Create account using Ed25519PrivateKey approach
+  aptosAccount = AptosAccount.fromAptosAccountObject({
+    privateKeyHex
+  });
+  console.log(`Using Aptos account: ${aptosAccount.address()}`);  
+} catch (error) {
+  console.warn(`Invalid Aptos private key format, using random account for testing`);
+  aptosAccount = new AptosAccount();
+  console.log(`Using random Aptos account: ${aptosAccount.address()}`);
+}
 
 /**
  * Generate a random secret for HTLC
@@ -111,9 +130,9 @@ async function initiateEtherlinkToAptosSwap(
     await approveTx.wait();
     console.log(`Approval transaction: ${approveTx.hash}`);
     
-    // Lock tokens in bridge contract
-    console.log(`Locking tokens in bridge contract...`);
-    const tx = await bridgeContract.initiateSwap(
+    // Lock tokens in HTLC contract
+    console.log(`Locking tokens in HTLC contract...`);
+    const tx = await htlcContract.initiateSwap(
       hash,
       receiverAddress,
       amountWei,
@@ -126,7 +145,7 @@ async function initiateEtherlinkToAptosSwap(
     console.log(`Swap initiated! Transaction: ${tx.hash}`);
     
     // Extract swap ID from events
-    const swapInitiatedEvent = receipt.events?.find(e => e.event === 'SwapInitiated');
+    const swapInitiatedEvent = receipt.events?.find((e: any) => e.event === 'SwapInitiated');
     const swapId = swapInitiatedEvent?.args?.swapId;
     console.log(`Swap ID: ${swapId}`);
     
@@ -161,8 +180,9 @@ async function initiateEtherlinkToAptosSwap(
 /**
  * Complete a swap from Etherlink to Aptos
  * @param swapId The ID of the swap to complete
+ * @param secret The secret to unlock the swap
  */
-async function completeEtherlinkToAptosSwap(swapId: string): Promise<void> {
+async function completeEtherlinkToAptosSwap(swapId: string, secret: string): Promise<void> {
   try {
     console.log(`Completing Etherlink -> Aptos swap...`);
     
@@ -184,7 +204,7 @@ async function completeEtherlinkToAptosSwap(swapId: string): Promise<void> {
         swapDetails.sender, // source_address
         swapDetails.receiver, // destination
         ethers.utils.parseEther(swapDetails.amount).toString(), // amount
-        swapDetails.secret, // preimage
+        secret, // preimage
       ],
     };
     
@@ -195,14 +215,14 @@ async function completeEtherlinkToAptosSwap(swapId: string): Promise<void> {
     const pendingTx = await aptosClient.submitTransaction(signedTx);
     
     // Wait for transaction
-    const txResult = await aptosClient.waitForTransaction(pendingTx.hash);
+    await aptosClient.waitForTransaction(pendingTx.hash);
     console.log(`Aptos transaction completed!`);
-    console.log(`Transaction hash: ${txResult.hash}`);
+    console.log(`Transaction hash: ${pendingTx.hash}`);
     
     // Update swap status
     swapDetails.status = 'completed';
     swapDetails.completedAt = Date.now();
-    swapDetails.aptosTransactionHash = txResult.hash;
+    swapDetails.aptosTransactionHash = pendingTx.hash;
     
     fs.writeFileSync(
       swapDetailsPath,
@@ -259,8 +279,8 @@ async function initiateAptosToEtherlinkSwap(
     const pendingTx = await aptosClient.submitTransaction(signedTx);
     
     // Wait for transaction
-    const txResult = await aptosClient.waitForTransaction(pendingTx.hash);
-    console.log(`Swap initiated! Transaction: ${txResult.hash}`);
+    await aptosClient.waitForTransaction(pendingTx.hash);
+    console.log(`Swap initiated! Transaction: ${pendingTx.hash}`);
     
     // Generate swap ID based on parameters similar to contract
     const swapId = crypto.createHash('sha256')
@@ -286,7 +306,7 @@ async function initiateAptosToEtherlinkSwap(
       status: 'initiated',
       sourceChain: 'Aptos',
       targetChain: 'Etherlink',
-      aptosTransactionHash: txResult.hash,
+      aptosTransactionHash: pendingTx.hash,
     };
     
     fs.writeFileSync(
@@ -305,8 +325,9 @@ async function initiateAptosToEtherlinkSwap(
 /**
  * Complete a swap from Aptos to Etherlink
  * @param swapId The ID of the swap to complete
+ * @param secret The secret to unlock the swap
  */
-async function completeAptosToEtherlinkSwap(swapId: string): Promise<void> {
+async function completeAptosToEtherlinkSwap(swapId: string, secret: string): Promise<void> {
   try {
     console.log(`Completing Aptos -> Etherlink swap...`);
     
@@ -321,12 +342,12 @@ async function completeAptosToEtherlinkSwap(swapId: string): Promise<void> {
     
     // Call the Etherlink contract to complete the swap
     console.log(`Completing swap on Etherlink...`);
-    const tx = await bridgeContract.completeSwap(
+    const tx = await htlcContract.completeSwap(
       swapDetails.sourceChain,
       swapDetails.sender,
       swapDetails.receiver,
       ethers.utils.parseEther(swapDetails.amount),
-      swapDetails.secret
+      secret
     );
     
     const receipt = await tx.wait();
@@ -385,8 +406,8 @@ async function executeOnEvm(
     const pendingTx = await aptosClient.submitTransaction(signedTx);
     
     // Wait for transaction
-    const txResult = await aptosClient.waitForTransaction(pendingTx.hash);
-    console.log(`Transaction submitted! Hash: ${txResult.hash}`);
+    await aptosClient.waitForTransaction(pendingTx.hash);
+    console.log(`Transaction submitted! Hash: ${pendingTx.hash}`);
     
   } catch (error) {
     console.error(`Error executing EVM transaction:`, error);
@@ -398,64 +419,61 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
   
-  switch (command) {
-    case 'etherlink-to-aptos':
-      if (args.length < 3) {
-        console.error('Usage: etherlink-to-aptos <amount> <receiver_address>');
-        process.exit(1);
-      }
-      await initiateEtherlinkToAptosSwap(args[1], args[2]);
-      break;
-      
-    case 'complete-aptos':
-      if (args.length < 2) {
-        console.error('Usage: complete-aptos <swap_id>');
-        process.exit(1);
-      }
-      await completeEtherlinkToAptosSwap(args[1]);
-      break;
-      
-    case 'aptos-to-etherlink':
-      if (args.length < 3) {
-        console.error('Usage: aptos-to-etherlink <amount> <receiver_address>');
-        process.exit(1);
-      }
-      await initiateAptosToEtherlinkSwap(args[1], args[2]);
-      break;
-      
-    case 'complete-etherlink':
-      if (args.length < 2) {
-        console.error('Usage: complete-etherlink <swap_id>');
-        process.exit(1);
-      }
-      await completeAptosToEtherlinkSwap(args[1]);
-      break;
-      
-    case 'execute-evm':
-      if (args.length < 5) {
-        console.error('Usage: execute-evm <chain_id> <contract_address> <calldata> <gas_limit>');
-        process.exit(1);
-      }
-      await executeOnEvm(
-        parseInt(args[1], 10),
-        args[2],
-        args[3],
-        parseInt(args[4], 10)
-      );
-      break;
-      
-    default:
-      console.log(`
+  if (command === 'etherlink-to-aptos') {
+    // Check if we have required args
+    if (args.length < 3) {
+      console.log('Usage: npm run etherlink-bridge etherlink-to-aptos <amount> <receiver_address>');
+      process.exit(1);
+    }
+    
+    await initiateEtherlinkToAptosSwap(args[1], args[2]);
+  } else if (command === 'complete-etherlink-to-aptos') {
+    // Check if we have required args
+    if (args.length < 3) {
+      console.log('Usage: npm run etherlink-bridge complete-etherlink-to-aptos <swap_id> <secret>');
+      process.exit(1);
+    }
+    
+    await completeEtherlinkToAptosSwap(args[1], args[2]);
+  } else if (command === 'aptos-to-etherlink') {
+    // Check if we have required args
+    if (args.length < 3) {
+      console.log('Usage: npm run etherlink-bridge aptos-to-etherlink <amount> <receiver_address>');
+      process.exit(1);
+    }
+    
+    await initiateAptosToEtherlinkSwap(args[1], args[2]);
+  } else if (command === 'complete-aptos-to-etherlink') {
+    // Check if we have required args
+    if (args.length < 3) {
+      console.log('Usage: npm run etherlink-bridge complete-aptos-to-etherlink <swap_id> <secret>');
+      process.exit(1);
+    }
+    
+    await completeAptosToEtherlinkSwap(args[1], args[2]);
+  } else if (command === 'execute-evm') {
+    if (args.length < 5) {
+      console.error('Usage: execute-evm <chain_id> <contract_address> <calldata> <gas_limit>');
+      process.exit(1);
+    }
+    
+    await executeOnEvm(
+      parseInt(args[1], 10),
+      args[2],
+      args[3],
+      parseInt(args[4], 10)
+    );
+  } else {
+    console.log(`
 Unreal Cross-Chain Bridge CLI
 
 Available commands:
   etherlink-to-aptos <amount> <receiver_address>  - Initiate swap from Etherlink to Aptos
-  complete-aptos <swap_id>                       - Complete swap on Aptos side
+  complete-etherlink-to-aptos <swap_id> <secret>  - Complete swap on Aptos side
   aptos-to-etherlink <amount> <receiver_address>  - Initiate swap from Aptos to Etherlink
-  complete-etherlink <swap_id>                   - Complete swap on Etherlink side
+  complete-aptos-to-etherlink <swap_id> <secret>  - Complete swap on Etherlink side
   execute-evm <chain_id> <contract_address> <calldata> <gas_limit> - Execute EVM tx from Aptos
-      `);
-      break;
+`);
   }
 }
 
