@@ -95,17 +95,20 @@ demo:
     @echo "Bidirectional swap demonstration completed"
 
 demo-bridge:
+    #!/bin/bash
+
+    rm swap_*.json || echo "no swap files"
     @echo "Starting Etherlink → Aptos bridge demo using etherlink-bridge script"
     @echo "Step 1: Deploy and initialize contracts on Aptos"
     just deploy
     @echo "Step 2: Add relayer for cross-chain operations"
     just add-relayer ${RELAYER_ADDRESS}
-    @echo "Step 3: Initiate Etherlink → Aptos swap (locks funds on Etherlink, generates swap_id and secret)"
-    @echo "         Replace <amount> and <aptos_receiver_address> with actual values."
-    bun etherlink-bridge etherlink-to-aptos <amount> <aptos_receiver_address>
-    @echo "Step 4: Complete swap on Aptos (requires swap_id and secret from previous step)"
-    @echo "         Replace <swap_id> and <secret> with actual values from Step 3 output."
-    bun etherlink-bridge complete-etherlink-to-aptos <swap_id> <secret>
+    @echo "Step 3: Initiate Etherlink → Aptos swap (locks 1 UNREAL on Etherlink, generates swap_id and secret)"
+    bun etherlink-bridge etherlink-to-aptos 1.0 ${APTOS_ACCOUNT}
+    read -p "Enter swap_id " swap_id; \
+    read -p "Enter secret " secret; \
+    echo "Step 4: Complete swap on Aptos (claim with swap_id and secret)"; \
+    bun etherlink-bridge complete-etherlink-to-aptos $swap_id $secret
     @echo "Etherlink → Aptos bridge demo completed."
 
 relayer *ARGS:
