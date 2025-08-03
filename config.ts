@@ -1,5 +1,8 @@
 import { etherlinkTestnet } from "viem/chains"
 
+// Define a fallback RPC URL in case the chain's default doesn't work
+const ETHERLINK_FALLBACK_RPC = "https://node.ghostnet.etherlink.com"
+
 export const ETHERLINK_CHAIN = etherlinkTestnet
 export const config = {
   aptosNodeUrl:
@@ -10,7 +13,10 @@ export const config = {
   aptosPrivateKey: process.env.APTOS_PRIVATE_KEY || "",
   aptosModuleAddress: process.env.APTOS_MODULE_ADDRESS || "0x1",
   aptosModuleName: process.env.APTOS_MODULE_NAME || "unreal",
-  etherlinkRpcUrl: process.env.ETHERLINK_RPC_URL || ETHERLINK_CHAIN.rpcUrls[0],
+  etherlinkRpcUrl:
+    process.env.ETHERLINK_RPC_URL ||
+    ETHERLINK_FALLBACK_RPC ||
+    ETHERLINK_CHAIN.rpcUrls.default.http[0],
   etherlinkPrivateKey: process.env.ETHERLINK_PRIVATE_KEY || "",
   etherlinkBridgeAddress: process.env.ETHERLINK_BRIDGE_ADDRESS || "",
   etherlinkHtlcAddress: process.env.ETHERLINK_HTLC_ADDRESS || "",
