@@ -117,9 +117,10 @@ async function initiateEtherlinkToAptosSwap(
     const gasPriceWithPremium = gasPrice.mul(120).div(100); // 20% premium
     console.log(`Using gas price: ${ethers.utils.formatUnits(gasPriceWithPremium, 'gwei')} gwei`);
     
-    // Add explicit gas parameters to help the transaction go through
+    // IMPORTANT: Approve the HTLC contract (not the bridge) - this is the contract that actually moves tokens
+    console.log(`Approving token spend for HTLC contract: ${config.etherlinkHtlcAddress}`); 
     const approveTx = await tokenContract.approve(
-      config.etherlinkBridgeAddress, 
+      config.etherlinkHtlcAddress, // Changed to HTLC address - this is the contract that transfers tokens
       amountWei,
       {
         gasLimit: 900000,  // Increased gas limit based on network requirements (872000 minimum)
