@@ -4,10 +4,12 @@ version = "1.0.0"
 authors = []
 
 # [addresses]
-# unreal = "b2530c42d161bab8d925e8227ee832bc79ac2edde9218f3b10f4d2385594a230"
+# # unreal = "b2530c42d161bab8d925e8227ee832bc79ac2edde9218f3b10f4d2385594a230"
+# unreal = "0xe33bcb0cc4efa388dd13b078ba7b39ae5332039eff995deaca2a9f43c886adbd"
 
 
-[dev-addresses]
+# [dev-addresses]
+# unreal = "0xe33bcb0cc4efa388dd13b078ba7b39ae5332039eff995deaca2a9f43c886adbd"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-framework.git"
