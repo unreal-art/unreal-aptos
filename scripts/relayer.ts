@@ -1,9 +1,10 @@
 import { AptosClient, AptosAccount, Types, IndexerClient } from "aptos"
-import { ethers } from "ethers"
+import { createPublicClient, createWalletClient, http, formatEther, decodeEventLog } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
 import * as dotenv from "dotenv"
 import * as fs from "fs"
 import * as path from "path"
-import { config } from "../config"
+import { config, ETHERLINK_CHAIN } from "../config"
 import {
   completeEtherlinkToAptosSwap,
   completeAptosToEtherlinkSwap,
@@ -18,14 +19,21 @@ dotenv.config()
 const aptosClient = new AptosClient(config.aptosNodeUrl)
 const indexerClient = new IndexerClient(config.aptosIndexerUrl)
 
-// Initialize Etherlink provider and contract
-const etherlinkProvider = new ethers.providers.JsonRpcProvider(
-  config.etherlinkRpcUrl
-)
-const etherlinkWallet = new ethers.Wallet(
-  config.etherlinkPrivateKey,
-  etherlinkProvider
-)
+// Initialize Etherlink clients using viem
+const etherlinkPublicClient = createPublicClient({
+  chain: ETHERLINK_CHAIN,
+  transport: http(config.etherlinkRpcUrl)
+})
+
+// Create wallet account from private key
+const etherlinkAccount = privateKeyToAccount(config.etherlinkPrivateKey as `0x${string}`)
+
+// Create wallet client
+const etherlinkWalletClient = createWalletClient({
+  account: etherlinkAccount,
+  chain: ETHERLINK_CHAIN,
+  transport: http(config.etherlinkRpcUrl)
+})
 
 // Load contract ABIs
 const htlcArtifact = JSON.parse(
@@ -48,22 +56,20 @@ const tokenArtifact = JSON.parse(
   )
 )
 
-// Extract ABIs from artifacts
+// Extract ABIs from artifacts - use directly without parseAbi since they're already in the right format
 const htlcAbi = htlcArtifact.abi
 const tokenAbi = tokenArtifact.abi
 
-// Contract instances
-const htlcContract = new ethers.Contract(
-  config.etherlinkHtlcAddress,
-  htlcAbi,
-  etherlinkWallet
-)
+// Create contract instances using viem
+const htlcContract = {
+  address: config.etherlinkHtlcAddress as `0x${string}`,
+  abi: htlcAbi
+}
 
-const tokenContract = new ethers.Contract(
-  config.unrealTokenAddress,
-  tokenAbi,
-  etherlinkWallet
-)
+const tokenContract = {
+  address: config.unrealTokenAddress as `0x${string}`,
+  abi: tokenAbi
+}
 
 // Aptos account from private key
 // Create a random account if private key isn't provided or is invalid
@@ -153,11 +159,11 @@ function loadRelayerState(): void {
 async function monitorEtherlinkEvents(): Promise<void> {
   try {
     // Get current block
-    const currentBlock = await etherlinkProvider.getBlockNumber()
+    const currentBlock = await etherlinkPublicClient.getBlockNumber()
 
     if (lastEtherlinkBlock === 0) {
       // First run, start from recent block to avoid processing historical events
-      lastEtherlinkBlock = Math.max(0, currentBlock - 100)
+      lastEtherlinkBlock = Number(currentBlock) - 200
     }
 
     if (currentBlock <= lastEtherlinkBlock) {
@@ -168,48 +174,60 @@ async function monitorEtherlinkEvents(): Promise<void> {
       `Checking Etherlink events from block ${lastEtherlinkBlock} to ${currentBlock}`
     )
 
-    // Query for SwapInitiated events
-    const filter = htlcContract.filters.SwapInitiated()
-    const events = await htlcContract.queryFilter(
-      filter,
-      lastEtherlinkBlock + 1,
-      currentBlock
-    )
+    // Get SwapInitiated events using viem
+    const events = await etherlinkPublicClient.getContractEvents({
+      address: config.etherlinkHtlcAddress as `0x${string}`,
+      abi: htlcAbi,
+      eventName: 'SwapInitiated',
+      fromBlock: BigInt(lastEtherlinkBlock + 1),
+      toBlock: BigInt(currentBlock)
+    })
 
     for (const event of events) {
-      // Safely extract arguments from the event
-      const args = event.args as any
-      if (!args) continue
+      // Safely extract arguments from the event - viem has a different structure
+      try {
+        // With viem, we need to decode the log data manually
+        const decodedLog = decodeEventLog({
+          abi: htlcAbi,
+          eventName: 'SwapInitiated',
+          topics: event.topics as [`0x${string}`, ...`0x${string}`[]],
+          data: event.data
+        })
+        
+        // Cast args to any to handle potential type issues
+        const args = decodedLog.args as any
+        const swapId = args.swapId
+        const sender = args.sender
+        const recipient = args.recipient
+        const amount = args.amount
+        const secretHash = args.secretHash
+        const targetChain = args.targetChain
 
-      const swapId = args.swapId
-      const sender = args.sender
-      const recipient = args.recipient
-      const amount = args.amount
-      const secretHash = args.secretHash
-      const targetChain = args.targetChain
+        // Only process events for Aptos target chain
+        if (targetChain === "Aptos") {
+          console.log(`Found new Etherlink->Aptos swap: ${swapId}`)
 
-      // Only process events for Aptos target chain
-      if (targetChain === "Aptos") {
-        console.log(`Found new Etherlink->Aptos swap: ${swapId}`)
+          // Store in pending swaps
+          pendingSwaps[swapId] = {
+            id: swapId,
+            sourceChain: "Etherlink",
+            destinationChain: "Aptos",
+            sender: sender,
+            recipient: recipient,
+            amount: formatEther(amount),
+            secretHash: secretHash,
+            timestamp: Date.now(),
+          }
 
-        // Store in pending swaps
-        pendingSwaps[swapId] = {
-          id: swapId,
-          sourceChain: "Etherlink",
-          destinationChain: "Aptos",
-          sender: sender,
-          recipient: recipient,
-          amount: ethers.utils.formatEther(amount),
-          secretHash: secretHash,
-          timestamp: Date.now(),
+          console.log(`Added pending swap ${swapId} to queue`)
         }
-
-        console.log(`Added pending swap ${swapId} to queue`)
+      } catch (error) {
+        console.error("Error processing Etherlink event:", error)
       }
     }
 
     // Update last processed block
-    lastEtherlinkBlock = currentBlock
+    lastEtherlinkBlock = Number(currentBlock)
     saveRelayerState()
   } catch (error) {
     console.error("Error monitoring Etherlink events:", error)
