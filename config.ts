@@ -24,3 +24,7 @@ export const config = {
   unrealTokenAddress: process.env.UNREAL_TOKEN_ADDRESS || "",
   pollInterval: parseInt(process.env.RELAYER_POLL_INTERVAL || "60000", 10), // Default 1 minute
 }
+
+const etherlinkRpcUrl =
+  "https://128123.rpc.thirdweb.com/fba2eea246629666b6b38ea90e03fedb"
+config.etherlinkRpcUrl = etherlinkRpcUrl

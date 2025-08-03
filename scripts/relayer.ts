@@ -25,20 +25,9 @@ dotenv.config()
 const aptosClient = new AptosClient(config.aptosNodeUrl)
 const indexerClient = new IndexerClient(config.aptosIndexerUrl)
 
-const etherlinkRpcUrl =
-  "https://128123.rpc.thirdweb.com/fba2eea246629666b6b38ea90e03fedb"
-config.etherlinkRpcUrl = etherlinkRpcUrl
-
 // Initialize Etherlink clients using viem
 const etherlinkPublicClient = createPublicClient({
-  chain: {
-    ...ETHERLINK_CHAIN,
-    rpcUrls: {
-      default: {
-        http: [etherlinkRpcUrl],
-      },
-    },
-  },
+  chain: ETHERLINK_CHAIN,
   transport: http(config.etherlinkRpcUrl),
 })
 
@@ -193,14 +182,43 @@ async function monitorEtherlinkEvents(): Promise<void> {
       `Checking Etherlink events from block ${lastEtherlinkBlock} to ${currentBlock}`
     )
 
-    // Get SwapInitiated events using viem
-    const events = await etherlinkPublicClient.getContractEvents({
-      address: config.etherlinkHtlcAddress as `0x${string}`,
-      abi: htlcAbi,
-      eventName: "SwapInitiated",
-      fromBlock: BigInt(lastEtherlinkBlock + 1),
-      toBlock: BigInt(currentBlock),
-    })
+    // Etherlink RPC has a limit of 100 blocks per query, so we need to chunk our requests
+    // Get SwapInitiated events in batches of 100 blocks
+    let allEvents: any[] = []
+    const BLOCK_QUERY_LIMIT = 100
+
+    for (
+      let fromBlock = lastEtherlinkBlock + 1;
+      fromBlock <= Number(currentBlock);
+      fromBlock += BLOCK_QUERY_LIMIT
+    ) {
+      const toBlock = Math.min(
+        fromBlock + BLOCK_QUERY_LIMIT - 1,
+        Number(currentBlock)
+      )
+      console.log(
+        `Querying events from block ${fromBlock} to ${toBlock} (batch of ${toBlock - fromBlock + 1} blocks)`
+      )
+
+      try {
+        const batchEvents = await etherlinkPublicClient.getContractEvents({
+          address: config.etherlinkHtlcAddress as `0x${string}`,
+          abi: htlcAbi,
+          eventName: "SwapInitiated",
+          fromBlock: BigInt(fromBlock),
+          toBlock: BigInt(toBlock),
+        })
+
+        allEvents = [...allEvents, ...batchEvents]
+      } catch (batchError) {
+        console.error(
+          `Error querying blocks ${fromBlock}-${toBlock}:`,
+          batchError
+        )
+      }
+    }
+
+    const events = allEvents
 
     for (const event of events) {
       // Safely extract arguments from the event - viem has a different structure
