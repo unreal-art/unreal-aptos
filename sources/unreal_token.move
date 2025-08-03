@@ -8,8 +8,8 @@ module unreal::unreal_token {
     /// Constants for the Unreal Token
     const TOKEN_NAME: vector<u8> = b"Unreal Token";
     const TOKEN_SYMBOL: vector<u8> = b"UNREAL";
-    const TOKEN_DECIMALS: u8 = 18;
-    const INITIAL_SUPPLY: u64 = 250000000; // 0.25 with 6 decimals - for testing
+    const TOKEN_DECIMALS: u8 = 6;
+    const INITIAL_SUPPLY: u64 = 250_000_000_000_000; // 250M × 10⁶ 
     
     /// Error codes
     const ERR_NOT_OWNER: u64 = 1;
