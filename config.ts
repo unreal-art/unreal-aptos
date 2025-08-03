@@ -4,6 +4,7 @@ import { etherlinkTestnet } from "viem/chains"
 const ETHERLINK_FALLBACK_RPC = "https://node.ghostnet.etherlink.com"
 
 export const ETHERLINK_CHAIN = etherlinkTestnet
+
 export const config = {
   aptosNodeUrl:
     process.env.APTOS_NODE_URL || "https://fullnode.testnet.aptoslabs.com",

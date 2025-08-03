@@ -1,5 +1,11 @@
 import { AptosClient, AptosAccount, Types, IndexerClient } from "aptos"
-import { createPublicClient, createWalletClient, http, formatEther, decodeEventLog } from "viem"
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  formatEther,
+  decodeEventLog,
+} from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import * as dotenv from "dotenv"
 import * as fs from "fs"
@@ -19,20 +25,33 @@ dotenv.config()
 const aptosClient = new AptosClient(config.aptosNodeUrl)
 const indexerClient = new IndexerClient(config.aptosIndexerUrl)
 
+const etherlinkRpcUrl =
+  "https://128123.rpc.thirdweb.com/fba2eea246629666b6b38ea90e03fedb"
+config.etherlinkRpcUrl = etherlinkRpcUrl
+
 // Initialize Etherlink clients using viem
 const etherlinkPublicClient = createPublicClient({
-  chain: ETHERLINK_CHAIN,
-  transport: http(config.etherlinkRpcUrl)
+  chain: {
+    ...ETHERLINK_CHAIN,
+    rpcUrls: {
+      default: {
+        http: [etherlinkRpcUrl],
+      },
+    },
+  },
+  transport: http(config.etherlinkRpcUrl),
 })
 
 // Create wallet account from private key
-const etherlinkAccount = privateKeyToAccount(config.etherlinkPrivateKey as `0x${string}`)
+const etherlinkAccount = privateKeyToAccount(
+  config.etherlinkPrivateKey as `0x${string}`
+)
 
 // Create wallet client
 const etherlinkWalletClient = createWalletClient({
   account: etherlinkAccount,
   chain: ETHERLINK_CHAIN,
-  transport: http(config.etherlinkRpcUrl)
+  transport: http(config.etherlinkRpcUrl),
 })
 
 // Load contract ABIs
@@ -63,12 +82,12 @@ const tokenAbi = tokenArtifact.abi
 // Create contract instances using viem
 const htlcContract = {
   address: config.etherlinkHtlcAddress as `0x${string}`,
-  abi: htlcAbi
+  abi: htlcAbi,
 }
 
 const tokenContract = {
   address: config.unrealTokenAddress as `0x${string}`,
-  abi: tokenAbi
+  abi: tokenAbi,
 }
 
 // Aptos account from private key
@@ -178,9 +197,9 @@ async function monitorEtherlinkEvents(): Promise<void> {
     const events = await etherlinkPublicClient.getContractEvents({
       address: config.etherlinkHtlcAddress as `0x${string}`,
       abi: htlcAbi,
-      eventName: 'SwapInitiated',
+      eventName: "SwapInitiated",
       fromBlock: BigInt(lastEtherlinkBlock + 1),
-      toBlock: BigInt(currentBlock)
+      toBlock: BigInt(currentBlock),
     })
 
     for (const event of events) {
@@ -189,11 +208,11 @@ async function monitorEtherlinkEvents(): Promise<void> {
         // With viem, we need to decode the log data manually
         const decodedLog = decodeEventLog({
           abi: htlcAbi,
-          eventName: 'SwapInitiated',
+          eventName: "SwapInitiated",
           topics: event.topics as [`0x${string}`, ...`0x${string}`[]],
-          data: event.data
+          data: event.data,
         })
-        
+
         // Cast args to any to handle potential type issues
         const args = decodedLog.args as any
         const swapId = args.swapId
