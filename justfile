@@ -80,7 +80,7 @@ claim-swap LOCK_ID PREIMAGE:
     --args "hex:{{PREIMAGE}}" \
     --assume-yes
 
-demo-bidirectional:
+demo:
     @echo "Starting Etherlink ↔ Aptos bidirectional swap demo"
     @echo "Step 1: Deploy and initialize contracts on Aptos"
     just deploy

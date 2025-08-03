@@ -372,7 +372,7 @@ async function executeEtherlinkToAptosSwap(
     // Print just command for Aptos-side swap initiation
     console.log(`\nNext step: Initiate the corresponding swap on Aptos:`)
     console.log(
-      `just initiate-swap ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${solverWallet.address}`
+      `just initiate-swap ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${solverWallet.address} ${unixTimestamp}`
     )
     console.log(`\nNext step: User claims on Aptos:`)
     console.log(`just claim-swap ${swapId} ${ethers.utils.hexlify(secret)}`)
