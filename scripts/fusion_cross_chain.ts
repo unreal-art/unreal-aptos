@@ -298,27 +298,30 @@ async function executeEtherlinkToAptosSwap(
     await approveTx.wait();
     console.log(`Approval transaction: ${approveTx.hash}`);
     
-    // Lock funds in HTLC
+    // Lock funds in HTLC using initiateSwap function
     console.log(`Locking funds in HTLC...`);
-    const lockTx = await solverHtlc.lock(
-      order.sourceToken,
-      order.amount,
+    
+    // Derive EVM compatible address from Aptos address
+    // For the receiver, we'll use the address as is since it's already in EVM format for testing
+    const evmCompatibleAddress = order.receiver;
+    
+    const lockTx = await solverHtlc.initiateSwap(
       secretHash,
+      evmCompatibleAddress,
+      order.amount,
       order.deadline,
-      order.receiver // The Aptos address
+      'Aptos', // Target chain identifier
+      order.receiver // Original receiver address as string in target chain data
     );
     await lockTx.wait();
     console.log(`Lock transaction: ${lockTx.hash}`);
     
-    // Get the swap ID
-    const swapId = await solverHtlc.getSwapId(
-      solverWallet.address,
-      order.receiver,
-      order.sourceToken,
-      order.amount,
-      secretHash,
-      order.deadline
-    );
+    // Extract swap ID from the transaction receipt events
+    const receipt = await lockTx.wait();
+    
+    // Find the SwapInitiated event
+    const swapInitiatedEvent = receipt.events?.find((e: any) => e.event === 'SwapInitiated');
+    const swapId = swapInitiatedEvent?.args?.swapId;
     console.log(`Swap ID: ${swapId}`);
     
     // Now initiate the corresponding swap on Aptos side
