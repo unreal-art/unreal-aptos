@@ -1,5 +1,15 @@
 {
-  "lastEtherlinkBlock": 20889326,
+  "lastEtherlinkBlock": 20890800,
   "lastAptosVersion": 6829927000,
-  "pendingSwaps": {}
+  "pendingSwaps": {
+    "undefined": {
+      "sourceChain": "Etherlink",
+      "destinationChain": "Aptos",
+      "sender": "0x1e28759B5Fb577211BE7F2e138495E71e3C4f1cd",
+      "recipient": "0x0000000000000000000000000000000000000001",
+      "amount": "1",
+      "secretHash": "0xca4d618e1d1cafd61ff738bc215a4d4f83a4c53346b402eff2fa35335e1b2953",
+      "timestamp": 1754208707860
+    }
+  }
 }

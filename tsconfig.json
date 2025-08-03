@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "es2020",
     "module": "commonjs",
-    "types": ["bun"],
+    "types": ["node"],
     "lib": ["es2020"],
     "declaration": true,
     "outDir": "./dist",

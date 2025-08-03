@@ -331,11 +331,28 @@ async function executeEtherlinkToAptosSwap(
     // Extract swap ID from the transaction receipt events
     const receipt = await lockTx.wait()
 
-    // Find the SwapInitiated event
-    const swapInitiatedEvent = receipt.events?.find(
-      (e: any) => e.event === "SwapInitiated"
-    )
-    const swapId = swapInitiatedEvent?.args?.swapId
+    // Decode events to find SwapInitiated and fetch lockContractId
+    const iface = new ethers.utils.Interface(htlcAbi)
+    let swapId: string | undefined
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log)
+        if (parsed.name === "SwapInitiated") {
+          // Event args: (lockContractId indexed, secretHash, ...)
+          swapId = parsed.args.lockContractId as string
+          break
+        }
+      } catch (_) {
+        /* log not from HTLC */
+      }
+    }
+
+    // Fallback: derive deterministic ID if event not found
+    if (!swapId) {
+      swapId = ethers.utils.keccak256(
+        ethers.utils.concat([ethers.utils.arrayify(secretHash), ethers.utils.arrayify(lockTx.hash)])
+      )
+    }
     console.log(`Swap ID: ${swapId}`)
 
     // Now initiate the corresponding swap on Aptos side
@@ -484,28 +501,33 @@ async function startSolverMonitor(
 
   // Initial run
   await monitor()
-
-  // Set up interval
-  const intervalId = setInterval(monitor, monitorInterval)
   console.log(
     `Solver monitor started. Checking every ${monitorInterval / 1000} seconds.`
   )
 
+  while (true) {
+    await monitor()
+    await Bun.sleep(monitorInterval)
+  }
+
+  // Set up interval
+  // const intervalId = setInterval(monitor, monitorInterval)
+
   // Prevent the Node.js process from exiting
-  process.stdin.resume()
+  // process.stdin.resume()
 
-  // Handle process termination gracefully
-  process.on("SIGINT", () => {
-    console.log("\nSolver monitor stopping...")
-    clearInterval(intervalId)
-    console.log("Solver monitor stopped. Exiting.")
-    process.exit(0)
-  })
+  // // Handle process termination gracefully
+  // process.on("SIGINT", () => {
+  //   console.log("\nSolver monitor stopping...")
+  //   clearInterval(intervalId)
+  //   console.log("Solver monitor stopped. Exiting.")
+  //   process.exit(0)
+  // })
 
-  // Log to show the monitor is still running
-  setInterval(() => {
-    console.log(`Solver monitor still active at ${new Date().toISOString()}`)
-  }, 300000) // Log every 5 minutes
+  // // Log to show the monitor is still running
+  // setInterval(() => {
+  //   console.log(`Solver monitor still active at ${new Date().toISOString()}`)
+  // }, 300000) // Log every 5 minutes
 }
 
 /**
@@ -592,7 +614,6 @@ Available commands:
 // Run the CLI
 if (require.main === module) {
   main()
-  Bun.sleep(1000 * 1e3)
 }
 
 export {

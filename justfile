@@ -12,11 +12,6 @@ SOLVER_PRIVATE_KEY := env("SOLVER_PRIVATE_KEY")
 
 ORDERFILE := "order.json"
 
-create-order:
-    bun run fusion-cross-chain create-order {{SOLVER_PRIVATE_KEY}} {{ORDERFILE}}
-
-start-solver orderfile=ORDERFILE:
-    bun run fusion-cross-chain start-solver {{SOLVER_PRIVATE_KEY}} {{orderfile}}
 
 deploy:
     aptos move compile --named-addresses unreal=${APTOS_ACCOUNT}
@@ -34,6 +29,12 @@ setup-htlc:
 add-relayer RELAYER_ADDRESS:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::add_relayer --args address:{{RELAYER_ADDRESS}} --assume-yes
 
+create-order:
+    bun run fusion-cross-chain create-order {{SOLVER_PRIVATE_KEY}} {{ORDERFILE}}
+
+start-solver orderfile=ORDERFILE:
+    bun run fusion-cross-chain start-solver {{SOLVER_PRIVATE_KEY}} {{orderfile}}
+    
 # Create a swap from Aptos to Etherlink
 initiate-swap SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS EVM_CHAIN_NAME EVM_ADDRESS:
     aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::initiate_swap \
@@ -53,6 +54,13 @@ complete-swap EVM_CHAIN_NAME EVM_ADDRESS RECIPIENT_ADDRESS AMOUNT SECRET:
     --args "address:{{RECIPIENT_ADDRESS}}" \
     --args "u64:{{AMOUNT}}" \
     --args "hex:{{SECRET}}" \
+    --assume-yes
+
+# Withdraw (claim) a locked swap on Aptos – run by the recipient
+claim-swap LOCK_ID PREIMAGE:
+    aptos move run --function-id ${APTOS_ACCOUNT}::unreal_htlc::withdraw \
+    --args "hex:{{LOCK_ID}}" \
+    --args "hex:{{PREIMAGE}}" \
     --assume-yes
 
 demo-bidirectional:
