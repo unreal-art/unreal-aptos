@@ -98,7 +98,8 @@ module unreal::unreal_tests {
             1000,
             24, // 24 hour timelock
             string::utf8(b"Etherlink"),
-            string::utf8(b"0x742d35Cc6634C0532925a3b844Bc454e4438f44e") // Example EVM address
+            string::utf8(b"0x742d35Cc6634C0532925a3b844Bc454e4438f44e"), // Example EVM address
+            timestamp::now_seconds()
         );
         
         // Check lock contract exists
@@ -154,7 +155,8 @@ module unreal::unreal_tests {
             1000,
             24, // 24 hour timelock
             string::utf8(b"Etherlink"),
-            string::utf8(b"0x742d35Cc6634C0532925a3b844Bc454e4438f44e") // Example EVM address
+            string::utf8(b"0x742d35Cc6634C0532925a3b844Bc454e4438f44e"), // Example EVM address
+            timestamp::now_seconds()
         );
         
         // Trying to refund before timelock expires should fail

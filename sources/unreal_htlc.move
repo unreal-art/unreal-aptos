@@ -114,12 +114,27 @@ module unreal::unreal_htlc {
             owner: admin_addr,
             relayers: vector::empty<address>(),
             lock_contracts: vector::empty<LockContract>(),
-            
             swap_initiated_events: account::new_event_handle<SwapInitiatedEvent>(admin),
             swap_withdrawn_events: account::new_event_handle<SwapWithdrawnEvent>(admin),
             swap_refunded_events: account::new_event_handle<SwapRefundedEvent>(admin),
             cross_chain_completed_events: account::new_event_handle<CrossChainCompletedEvent>(admin),
             evm_execution_events: account::new_event_handle<EVMExecutionEvent>(admin),
+        });
+    }
+
+    /// User-friendly initializer for any account
+    public entry fun init_user_htlc(sender: &signer) {
+        let sender_addr = signer::address_of(sender);
+        assert!(!exists<UnrealHTLCState>(sender_addr), error::already_exists(ERR_ALREADY_INITIALIZED));
+        move_to(sender, UnrealHTLCState {
+            owner: sender_addr,
+            relayers: vector::empty<address>(),
+            lock_contracts: vector::empty<LockContract>(),
+            swap_initiated_events: account::new_event_handle<SwapInitiatedEvent>(sender),
+            swap_withdrawn_events: account::new_event_handle<SwapWithdrawnEvent>(sender),
+            swap_refunded_events: account::new_event_handle<SwapRefundedEvent>(sender),
+            cross_chain_completed_events: account::new_event_handle<CrossChainCompletedEvent>(sender),
+            evm_execution_events: account::new_event_handle<EVMExecutionEvent>(sender),
         });
     }
 

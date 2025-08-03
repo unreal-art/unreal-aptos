@@ -511,7 +511,7 @@ async function startSolverMonitor(
 
   while (true) {
     await monitor()
-    await Bun.sleep(monitorInterval)
+    await new Promise(res => setTimeout(res, monitorInterval))
   }
 
   // Set up interval
