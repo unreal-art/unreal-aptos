@@ -317,7 +317,13 @@ async function executeEtherlinkToAptosSwap(
     // Compute unix timestamp (seconds) for deterministic swap ID
     const unixTimestamp = Math.floor(Date.now() / 1000)
     // Arg order: SECRET_HASH RECIPIENT AMOUNT TIMELOCK_HOURS SOURCE_CHAIN RECEIVER_EVM TIMESTAMP
-    console.log(`\nNext step: Lock funds in HTLC\njust lock-funds ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${evmCompatibleAddress} ${unixTimestamp}\n`)
+    // Convert 18 decimal amount to 6 decimals for Aptos
+    const amount6 = (BigInt(order.amount) / 1000000000000n).toString()
+
+    order.amount = amount6
+    console.log(
+      `\nNext step: Lock funds in HTLC\njust lock-funds ${secretHash} ${order.receiver} ${amount6} 24 Etherlink ${evmCompatibleAddress} ${unixTimestamp}\n`
+    )
 
     // Lock funds in HTLC using initiateSwap function
     console.log(`Locking funds in HTLC...`)
@@ -355,14 +361,19 @@ async function executeEtherlinkToAptosSwap(
     // Fallback: derive deterministic ID if event not found
     if (!swapId) {
       swapId = ethers.utils.keccak256(
-        ethers.utils.concat([ethers.utils.arrayify(secretHash), ethers.utils.arrayify(lockTx.hash)])
+        ethers.utils.concat([
+          ethers.utils.arrayify(secretHash),
+          ethers.utils.arrayify(lockTx.hash),
+        ])
       )
     }
     console.log(`Swap ID: ${swapId}`)
 
     // Print just command for Aptos-side swap initiation
     console.log(`\nNext step: Initiate the corresponding swap on Aptos:`)
-    console.log(`just initiate-swap ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${solverWallet.address}`)
+    console.log(
+      `just initiate-swap ${secretHash} ${order.receiver} ${order.amount} 24 Etherlink ${solverWallet.address}`
+    )
     console.log(`\nNext step: User claims on Aptos:`)
     console.log(`just claim-swap ${swapId} ${ethers.utils.hexlify(secret)}`)
 
@@ -511,7 +522,7 @@ async function startSolverMonitor(
 
   while (true) {
     await monitor()
-    await new Promise(res => setTimeout(res, monitorInterval))
+    await new Promise((res) => setTimeout(res, monitorInterval))
   }
 
   // Set up interval
